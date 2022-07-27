@@ -16,14 +16,9 @@ import lzma
 
 ### 配置区域开始 ###
 # 填入chroot包的网络位置。chroot包只能为tar.xz格式。若想使用学而思加速，请参照官方仓库教程。
-chrootUrl = "https://livefile.xesimg.com/programme/python_assets/c88b991a58cf1c3a990567c0fa0d5cf5.py"
+chrootUrl = ""
 # 第一次启动运行的脚本。位置在/tmp/firstrun.sh。
 firstRunScript = """
-#!/bin/sh
-# 这是脚本内容
-echo "nameserver 223.5.5.5" > /etc/resolv.conf
-sh
-exit 0
 """
 ### 配置区域结束 ###
 busyboxCompressed = ""
@@ -51,7 +46,7 @@ def download(path: str, url: str) -> None:
 def run():
     global busyboxCompressed, containerCompressed, chrootUrl, firstRunScript
     print("XesChroot by FurryR(凌)")
-    print("本项目使用 LGPLv2 开源。")
+    print("本项目使用 AGPLv3 开源。")
     print("Github仓库:FurryR/XesChroot")
     print("如果您觉得本项目很赞，记得给我们一个免费的star！")
     print("注：本项目并非学而思官方项目，因此项目造成的任何损失，凌不承担任何责任。\n\n")
