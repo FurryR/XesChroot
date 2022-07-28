@@ -101,15 +101,9 @@ def run():
         print("--- Stage 3/3 of Initalizing ---")
         print("---> Changing root directory to (container)/chroot/")
         print("---> Executing first-run script")
-        ret = 0
-        while 1:
-            ret = os.system(
-                "LD_PRELOAD=$(pwd)/utils/container.so utils/busybox chroot chroot/ sh -c " + json.dumps(firstRunScript)
-            )
-            if ret==35072:
-                print("---> :( Killed, restarting docker")
-            else:
-                break
+        ret = os.system(
+            "LD_PRELOAD=$(pwd)/utils/container.so utils/busybox chroot chroot/ sh -c " + json.dumps(firstRunScript)
+        )
         print("\n\n---> Program exited with return code {}".format(ret))
         # 第三阶段完成
     finally:
