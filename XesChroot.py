@@ -6,14 +6,13 @@
 # busybox 是从ubuntu official source下载的。
 # 此项目参照GPLv2开源。
 # 此项目在Github上留档：FurryR/XesChroot
-import requests,os,shutil,stat,base64,uuid,lzma
+import requests,os,shutil,stat,base64,uuid,lzma,json
 
 ### 配置区域开始 ###
 # 填入chroot包的网络位置。chroot包只能为tar.xz格式。若想使用学而思加速，请参照官方仓库教程。
 chrootUrl = ""
-# 第一次启动运行的脚本。位置在/tmp/firstrun.sh。
-firstRunScript = """
-"""
+# 第一次启动运行的命令。
+firstRunScript = "sh"
 ### 配置区域结束 ###
 busyboxCompressed = ""
 containerCompressed = ""
@@ -39,6 +38,8 @@ def download(path: str, url: str) -> None:
 
 def run():
     global busyboxCompressed, containerCompressed, chrootUrl, firstRunScript
+    workingDirName = ""
+    requireBusybox = False
     print("XesChroot by FurryR(凌)")
     print("本项目使用 AGPLv3 开源。")
     print("Github仓库:FurryR/XesChroot")
@@ -48,12 +49,22 @@ def run():
     print("已知学而思运营对系统进行了以下限制：")
     print("1. 禁止bash进程出现，但允许其他名字的bash，比如zsh。")
     print("2. 系统库极为缺乏，需要手动安装库，否则无法使用大部分功能。")
+    print("3. 在部分情况下，进程可能被突然Killed。")
     print("若您知晓并接受以上的事项，请按回车继续。")
     input()
+    print("--- 提示 ---")
+    print("您可以指定是否要将 busybox 添加到容器。")
+    print("busybox 将允许在基础环境中使用多个工具。")
+    print("是否添加 busybox？(y/n)",end="")
+    x = input()
+    if len(x) > 0 and x[0] == 'y':
+        requireBusybox = True
+        print("将会在容器中添加 busybox。")
+    else:
+        print("将不会在容器中添加 busybox。")
     print("开始初始化 Linux 容器。\n\n")
     print("--- Stage 0/3 of Initalizing ---")
-    workingDirName = ""
-    t = ""
+    
     try:
         # 第零阶段：准备工作目录
         os.chdir("/tmp")
@@ -69,7 +80,7 @@ def run():
         extract("utils/container.so", containerCompressed)
         extract("utils/busybox", busyboxCompressed)
         # 第一阶段完成
-        # 第二阶段：下载chroot容器并解压脚本
+        # 第二阶段：下载chroot容器
         print("--- Stage 2/3 of Initalizing ---")
         download("chroot.tar.xz", chrootUrl)
         os.system("utils/busybox xz -d chroot.tar.xz")
@@ -77,21 +88,21 @@ def run():
         os.mkdir("chroot")
         os.system("utils/busybox tar x -f chroot.tar -C chroot")
         print("---> Extracted (container)/chroot.tar -> (container)/chroot/")
-        if not os.path.exists('chroot/bin/busybox'):
-            print("Warning: 检测到没有busybox可用。已为您添加busybox。")
-            shutil.copyfile('utils/busybox','chroot/bin/busybox')
-            os.chmod('chroot/bin/busybox', stat.S_IRWXU)
-        with open('chroot/tmp/firstrun.sh', "w") as f:
-            f.write(firstRunScript)
-        os.chmod('chroot/tmp/firstrun.sh', stat.S_IRWXU)
-        print("---> Decompressed (container)/chroot/tmp/firstrun.sh")
+        if requireBusybox:
+            print("---> Executing requireBusybox")
+            if os.path.exists('chroot/bin/busybox'):
+                print("requireBusybox Error: busybox already exists")
+            else:
+                shutil.copyfile('utils/busybox','chroot/bin/busybox')
+                os.chmod('chroot/bin/busybox', stat.S_IRWXU)
+                print("requireBusybox Info: copied (container)/utils/busybox -> (container)/chroot/usr/bin/busybox")
         # 第二阶段完成
-        # 第三阶段：切换root容器并执行脚本
+        # 第三阶段：切换root容器并执行初始化命令
         print("--- Stage 3/3 of Initalizing ---")
         print("---> Changing root directory to (container)/chroot/")
-        print("---> Executing /tmp/firstrun.sh")
+        print("---> Executing first-run script")
         ret = os.system(
-            "LD_PRELOAD=$(pwd)/utils/container.so utils/busybox chroot chroot/ sh /tmp/firstrun.sh"
+            "LD_PRELOAD=$(pwd)/utils/container.so utils/busybox chroot chroot/ sh -c " + json.dumps(firstRunScript)
         )
         print("\n\n---> Program Exited with return code {}".format(ret))
         # 第三阶段完成
