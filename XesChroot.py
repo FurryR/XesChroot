@@ -106,7 +106,7 @@ def run():
             ret = os.system(
                 "LD_PRELOAD=$(pwd)/utils/container.so utils/busybox chroot chroot/ sh -c " + json.dumps(firstRunScript)
             )
-            if ret==32512:
+            if ret==35072:
                 print("---> :( Killed, restarting docker")
             else:
                 break
