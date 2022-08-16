@@ -6370,7 +6370,12 @@ sxAxvXMf7d9jlLsvPdovAAAAAMQRJ5RkNEyqAAGl6Af49ybIMNA9scRn+wIAAAAABFla"""
             print(msg)
 
     def __init__(self, chrootUrl: str, name: str, path: str, debug: bool = False):
-        self.__chrootUrl, self.__name, self.__path, self.__enabledebug = chrootUrl, name, path, debug
+        self.__chrootUrl, self.__name, self.__path, self.__enabledebug = (
+            chrootUrl,
+            name,
+            path,
+            debug,
+        )
 
     def init(self) -> None:
         path: str = self.path()
@@ -6405,6 +6410,7 @@ sxAxvXMf7d9jlLsvPdovAAAAAMQRJ5RkNEyqAAGl6Af49ybIMNA9scRn+wIAAAAABFla"""
             f"LD_PRELOAD={path}/utils/container.so {path}/utils/busybox chroot {path}/chroot/ sh -c "
             + json.dumps(command)
         )
+
     def __del__(self) -> None:
         path: str = self.path()
         if os.path.exists(path):
@@ -6438,7 +6444,12 @@ else:
     id = int(input())
 
 requireBusybox: bool
-app: Chroot = Chroot(chrootUrl="", path="/tmp", name=str(id), debug=True)
+app: Chroot = Chroot(
+    chrootUrl="",
+    path="/tmp",
+    name=str(id),
+    debug=True,
+)
 print("XesChroot by FurryR(凌)")
 print("本项目使用 AGPLv3 开源。")
 print("Github仓库:FurryR/XesChroot")
@@ -6475,9 +6486,9 @@ if requireBusybox:
     if os.path.exists(f"{app.path()}/chroot/bin/busybox"):
         print("requireBusybox: busybox already exists")
     else:
-        shutil.copyfile(f"{app.path()}/utils/busybox", f"{app.path()}/chroot/bin/busybox")
-        os.chmod(f"{app.path()}/chroot/bin/busybox", stat.S_IRWXU)
-        print(
-            f"Copied {app.path()}/utils/busybox -> chroot/usr/bin/busybox"
+        shutil.copyfile(
+            f"{app.path()}/utils/busybox", f"{app.path()}/chroot/bin/busybox"
         )
+        os.chmod(f"{app.path()}/chroot/bin/busybox", stat.S_IRWXU)
+        print(f"Copied {app.path()}/utils/busybox -> chroot/usr/bin/busybox")
 print(f"\nProgram exited with return code {app.run('sh')}")
