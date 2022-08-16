@@ -6438,7 +6438,7 @@ else:
     id = int(input())
 
 requireBusybox: bool
-app: Chroot = Chroot(chrootUrl="https://livefile.xesimg.com/programme/python_assets/c88b991a58cf1c3a990567c0fa0d5cf5.py", path="/tmp", name=str(id), debug=True)
+app: Chroot = Chroot(chrootUrl="", path="/tmp", name=str(id), debug=True)
 print("XesChroot by FurryR(凌)")
 print("本项目使用 AGPLv3 开源。")
 print("Github仓库:FurryR/XesChroot")
