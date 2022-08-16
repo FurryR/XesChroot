@@ -1,125 +1,41 @@
 #!/bin/python
 # coding=utf-8
+"""
+This program was under the AGPLv3 license.
+Copyright(c) 2022 FurryR.
+"""
 # 文件使用说明：
-# container.so 为 由 Github仓库 FurryR/fakechroot(forked from dex4er/fakechroot) 编译得到的 libfakechroot.so。
-# 此项目参照LGPLv2开源。
-# busybox 是从ubuntu official source下载的。
-# 此项目参照GPLv2开源。
-# 此项目在Github上留档：FurryR/XesChroot
-import requests,os,shutil,stat,base64,uuid,lzma,json
-
-### 配置区域开始 ###
-# 填入chroot包的网络位置。chroot包只能为tar.xz格式。若想使用学而思加速，请参照官方仓库教程。
-chrootUrl = ""
-# 第一次启动运行的命令。
-firstRunScript = "sh"
-### 配置区域结束 ###
-busyboxCompressed = ""
-containerCompressed = ""
+# container.so 为 由 Github仓库 FurryR/fakechroot(forked from dex4er/fakechroot) 编译得到的 libfakechroot.so，参照LGPLv2开源。
+# busybox 是从ubuntu official source下载的，参照GPLv2开源。
+# 此项目的Github：FurryR/XesChroot
+import requests, os, shutil, stat, base64, lzma, json
 
 
-def decompress(bs: str) -> bytes:
-    return lzma.decompress(base64.b64decode(bs.replace("\n", "")))
+class Chroot:
+    __chrootUrl: str
+    __name: str
+    __path: str
+    __enabledebug: bool
 
+    @staticmethod
+    def __decompress(bs: str) -> bytes:
+        return lzma.decompress(base64.b64decode(bs.replace("\n", "")))
 
-def extract(path: str, bs: str) -> None:
-    with open(path, "wb") as f:
-        f.write(decompress(bs))
-    os.chmod(path, stat.S_IRWXU)
-    print("---> Decompressed (container)/{}".format(path))
+    @staticmethod
+    def __extract(path: str, bs: str) -> None:
+        with open(path, "wb") as f:
+            f.write(Chroot.__decompress(bs))
+        os.chmod(path, stat.S_IRWXU)
 
+    @staticmethod
+    def __download(path: str, url: str) -> None:
+        req = requests.get(url)
+        with open(path, "wb") as f:
+            f.write(req.content)
 
-def download(path: str, url: str) -> None:
-    req = requests.get(url)
-    with open(path, "wb") as f:
-        f.write(req.content)
-    print("---> Downloaded (container)/{}".format(path))
-
-
-def run():
-    global busyboxCompressed, containerCompressed, chrootUrl, firstRunScript
-    workingDirName = ""
-    requireBusybox = False
-    print("XesChroot by FurryR(凌)")
-    print("本项目使用 AGPLv3 开源。")
-    print("Github仓库:FurryR/XesChroot")
-    print("如果您觉得本项目很赞，记得给我们一个免费的star！")
-    print("注：本项目并非学而思官方项目，因此项目造成的任何损失，凌不承担任何责任。\n\n")
-    print("--- 警告 ---")
-    print("已知学而思运营对系统进行了以下限制：")
-    print("1. 禁止bash进程出现，但允许其他名字的bash，比如zsh。")
-    print("2. 系统库极为缺乏，需要手动安装库，否则无法使用大部分功能。")
-    print("3. 在部分情况下，进程可能被突然Killed。")
-    print("若您知晓并接受以上的事项，请按回车继续。")
-    input()
-    print("--- 提示 ---")
-    print("您可以指定是否要将 busybox 添加到容器。")
-    print("busybox 将允许在基础环境中使用多个工具。")
-    print("是否添加 busybox？(y/n)",end="")
-    x = input()
-    if len(x) > 0 and x[0] == 'y':
-        requireBusybox = True
-        print("将会在容器中添加 busybox。")
-    else:
-        print("将不会在容器中添加 busybox。")
-    print("开始初始化 Linux 容器。\n\n")
-    print("--- Stage 0/3 of Initalizing ---")
-    
-    try:
-        # 第零阶段：准备工作目录
-        os.chdir("/tmp")
-        workingDirName = str(uuid.uuid1())
-        os.mkdir(workingDirName)
-        print("---> Created container {}".format(workingDirName))
-        os.chdir(workingDirName)
-        # 第零阶段完成
-        # 第一阶段：抽出container和busybox
-        print("--- Stage 1/3 of Initalizing ---")
-        os.mkdir("utils")
-        print("---> Created directory (container)/utils")
-        extract("utils/container.so", containerCompressed)
-        extract("utils/busybox", busyboxCompressed)
-        # 第一阶段完成
-        # 第二阶段：下载chroot容器
-        print("--- Stage 2/3 of Initalizing ---")
-        download("chroot.tar.xz", chrootUrl)
-        os.system("utils/busybox xz -d chroot.tar.xz")
-        print("---> Extracted (container)/chroot.tar.xz -> (container)/chroot.tar")
-        os.mkdir("chroot")
-        os.system("utils/busybox tar x -f chroot.tar -C chroot")
-        print("---> Extracted (container)/chroot.tar -> (container)/chroot/")
-        if requireBusybox:
-            print("---> Executing requireBusybox")
-            if os.path.exists('chroot/bin/busybox'):
-                print("requireBusybox Error: busybox already exists")
-            else:
-                shutil.copyfile('utils/busybox','chroot/bin/busybox')
-                os.chmod('chroot/bin/busybox', stat.S_IRWXU)
-                print("requireBusybox Info: copied (container)/utils/busybox -> (container)/chroot/usr/bin/busybox")
-        # 第二阶段完成
-        # 第三阶段：切换root容器并执行初始化命令
-        print("--- Stage 3/3 of Initalizing ---")
-        print("---> Changing root directory to (container)/chroot/")
-        print("---> Executing first-run script")
-        ret = os.system(
-            "LD_PRELOAD=$(pwd)/utils/container.so utils/busybox chroot chroot/ sh -c " + json.dumps(firstRunScript)
-        )
-        print("\n\n---> Program exited with return code {}".format(ret))
-        # 第三阶段完成
-    finally:
-        # 回收资源
-        print("--- Stage 1/1 of Finishing ---")
-        os.chdir("/tmp")
-        shutil.rmtree(workingDirName)
-        print("---> Removed container {}".format(workingDirName))
-        # 回收资源完成
-        print(":) Thanks for using. Made with love by FurryR.")
-
-
-def init() -> None:
-    global busyboxCompressed, containerCompressed
-    busyboxCompressed = """
-/Td6WFoAAATm1rRGAgAhARwAAAAQz1jM4jFh7/9dAD+RRYRoPYmm2orhgzJO5XffP2BFNfy4V1ol3AbFYsycteg2ql+JKATKzqJS
+    @staticmethod
+    def __busyboxCompressed() -> str:
+        return """/Td6WFoAAATm1rRGAgAhARwAAAAQz1jM4jFh7/9dAD+RRYRoPYmm2orhgzJO5XffP2BFNfy4V1ol3AbFYsycteg2ql+JKATKzqJS
 CCEFYhzPG1SxPUk893TX83Nsw8aEZCSrWDt1vMtj3Zk+IfUSqCEOQZumP6oxTeAiW3DUUqfOQAP2ZG0rOaq0qq3sRwU1CRYSrIWG
 LmB7BZoa/ytCpjh8LeFPmFFM6qNEupwQbxIH/0Jux1VV3JjtyBgx5clQBgRJIT1gXYwSF16Kgebt48xPC4x0hNxLUhuTGnsn3qLF
 /+sgedu4iShRGzoncI7OvI0EuwVcoft1lfJ7U2IcD1OrZknQ2tyZi/2mZcg+GC6aYf2k8o7YY96ZdGcTqOQAW0adw+Qa7yHN/ZRp
@@ -4736,10 +4652,11 @@ dXG1kMQhoB0oEBZMzJzvBRSlhe2N6GVeZ9CdklvuBhpEDH7/uCETuJTg/yGdRHBmNVlu942GJ+wVpPee
 uCKFN/JNu64bPen+2s/yYzxk6dLWzUo66pZvdDyF8ps51Ucyk9JjwInCh8iOZFXu/pzVKvxT5w59lxcoTaZsG0CcteY5L4ivdeQ0
 Ef9dE+h8/enOsHAJqhYMh2aJSHpND+QyPPeLO0Ui7za+W1YjAbcs5eLyDTs5TMxJxR9/D06LZkZ3UYWb/+vVDrpupjRo5iN9lfmV
 uluHRxLXxX9ud/sxeJr7jveoUiI8a17mq+nqliMb+VNgBzAhLlebJCiT/TbQDwAA3qGy01bAVqcAAYORFeD1J5Vr87WxxGf7AgAA
-AAAEWVo=
-"""
-    containerCompressed = """
-/Td6WFoAAATm1rRGAgAhARwAAAAQz1jM410D7/5dAD+RRYRoPYmm2orhgzJO2QXB/vXUbqRAHhj43c1mjsfvc82U1Q3Maax1yojK
+AAAEWVo="""
+
+    @staticmethod
+    def __containerCompressed() -> str:
+        return """/Td6WFoAAATm1rRGAgAhARwAAAAQz1jM410D7/5dAD+RRYRoPYmm2orhgzJO2QXB/vXUbqRAHhj43c1mjsfvc82U1Q3Maax1yojK
 xz1yYHNPHgWx3sLv1YCzLRrss8pXW8vK8qkDDfXK31xF2tzNBUKhDnUDXAUv90k+wtNqCX1tM6xhgFzOpLu0B6athoQOC+rxZCL3
 Co26yxursm+GVPruD8zdxphxRcxkiCHQIL334o72B7t/BQ600laRLCJ6Ct6rdfG968hzB3Hodw2WOnr50ZyOQa0lYY0rPHDBXcZI
 /qu7O5jpvEboQr1/17h+DBEvmMQjZvR1VupCQmn1qR0OU7ZzSaAZ0PDaY+bBzBzheuOG6TK7zVr35Ds480rL/20ZZV+8BSpulhlA
@@ -6446,9 +6363,121 @@ uOUj+OnV39kIgGwA9NLGgnC6GLsHDid+xs143WzJLDMaWgnuKpSm7p1Hr2g7NdnYvLGaWEtoER7Vili6
 E26mjpZQhFLTNa8xTnAd0BII8PGlefmQozv5uiZlZq9bRgHppAvu6a6/7HTy/atHZDMX79oU4bSRs/ZnYLDOzz5VKLLORWXgej3B
 R4AjEooFAz4ugmV1Ipzo1HlIia6NHeR77aMM/uEgFjgtL6nGGVMyVk835w5ZwlnH4eTocLVkAWT2lnveh7DZmDvOp4HW6Lso1gyB
 sbBdrcfkneXoYmCcGUVZ6zuvL5+59+RjMH6Apgd5eqqBxf+M7xYlelYyDrZMIVpOOS8H0nLcd4acowzjabiz7O0q/tLIfMSYusnB
-sxAxvXMf7d9jlLsvPdovAAAAAMQRJ5RkNEyqAAGl6Af49ybIMNA9scRn+wIAAAAABFla
-"""
+sxAxvXMf7d9jlLsvPdovAAAAAMQRJ5RkNEyqAAGl6Af49ybIMNA9scRn+wIAAAAABFla"""
+
+    def __debug(self, msg: str) -> None:
+        if self.__enabledebug:
+            print(msg)
+
+    def __init__(self, chrootUrl: str, name: str, path: str, debug: bool = False):
+        self.__chrootUrl, self.__name, self.__path, self.__enabledebug = chrootUrl, name, path, debug
+
+    def init(self) -> None:
+        path: str = self.path()
+        if os.path.exists(path):
+            shutil.rmtree(path)
+            self.__debug(f"Removed old container {path}")
+        os.mkdir(path)
+        self.__debug(f"Created container {path}")
+        os.mkdir(f"{path}/utils")
+        self.__extract(f"{path}/utils/container.so", self.__containerCompressed())
+        self.__debug(f"Extracted {path}/utils/container.so")
+        self.__extract(f"{path}/utils/busybox", self.__busyboxCompressed())
+        self.__debug(f"Extracted {path}/utils/busybox")
+        self.__download(f"{path}/chroot.tar.xz", self.__chrootUrl)
+        self.__debug(f"Downloaded {path}/chroot.tar.xz")
+        os.system(f"{path}/utils/busybox xz -d {path}/chroot.tar.xz")
+        self.__debug(f"Extracted {path}/chroot.tar.xz -> chroot.tar")
+        os.mkdir(f"{path}/chroot")
+        self.__debug(f"Created directory {path}/chroot")
+        os.system(f"{path}/utils/busybox tar x -f {path}/chroot.tar -C {path}/chroot")
+        self.__debug(f"Extracted {path}/chroot.tar -> {path}/chroot/")
+        os.remove(f"{path}/chroot.tar")
+        self.__debug(f"Removed {path}/chroot.tar")
+
+    def path(self) -> str:
+        return f"{self.__path}/{self.__name}"
+
+    def run(self, command: str) -> int:
+        path: str = self.path()
+        self.__debug("Executing 'command'")
+        return os.system(
+            f"LD_PRELOAD={path}/utils/container.so {path}/utils/busybox chroot {path}/chroot/ sh -c "
+            + json.dumps(command)
+        )
+    def __del__(self) -> None:
+        path: str = self.path()
+        if os.path.exists(path):
+            shutil.rmtree(path)
+            self.__debug(f"Removed container {path}")
 
 
-init()
-run()
+# 以下是对Chroot的使用示例。
+import sys
+import re
+import typing
+
+
+def getid() -> typing.Union[int, None]:
+    if len(sys.argv) != 2:
+        return None
+    pattern = re.compile("stu_id=[0-9]+")
+    result = pattern.search(sys.argv[1])
+    if result is None:
+        return None
+    else:
+        return int(result.group()[7:-1])
+
+
+id: typing.Union[int, None] = getid()
+if isinstance(id, int):
+    print(f"您的学而思 ID是${id}")
+else:
+    print("未能获取到您的学而思 ID。")
+    print("请手动输入您的学而思 ID：", end="")
+    id = int(input())
+
+requireBusybox: bool
+app: Chroot = Chroot(chrootUrl="https://livefile.xesimg.com/programme/python_assets/c88b991a58cf1c3a990567c0fa0d5cf5.py", path="/tmp", name=str(id), debug=True)
+print("XesChroot by FurryR(凌)")
+print("本项目使用 AGPLv3 开源。")
+print("Github仓库:FurryR/XesChroot")
+print("如果您觉得本项目很赞，记得给我们一个免费的star！")
+print("注：本项目并非学而思官方项目，因此项目造成的任何损失，凌不承担任何责任。\n\n")
+print("--- 警告 ---")
+print("已知学而思运营对系统进行了以下限制：")
+print("1. 禁止bash进程出现，但允许其他名字的bash，比如zsh。")
+print("2. 系统库极为缺乏，需要手动安装库，否则无法使用大部分功能。")
+print("3. 在部分情况下，进程可能被突然Killed。")
+print("若您知晓并接受以上的事项，请按回车继续。")
+input()
+print("--- 隐私性警告 ---")
+print("XesChroot v2使用您的学而思 ID作为容器的名称以防止额外的资源浪费。您的学而思 ID将暂时对所有人公开。")
+print("任何人都可以获取您的学而思 ID。这意味着，您的一切行为都可能被记录，并可能导致您的账户或您对网站的访问等遭到限制。")
+print("若发生以上情况造成的任何损失，凌不承担任何责任。")
+print("若您知晓并接受以上的事项，请按回车继续。")
+input()
+print("--- 提示 ---")
+print("您可以指定是否要将 busybox 添加到容器。")
+print("busybox 将允许在基础环境中使用多个工具。")
+print("是否添加 busybox？(y/n)", end="")
+x = input()
+if len(x) > 0 and x[0] == "y":
+    requireBusybox = True
+    print("将会在容器中添加 busybox。")
+else:
+    requireBusybox = False
+    print("将不会在容器中添加 busybox。")
+print("开始初始化 Linux 容器。\n")
+app.init()
+if requireBusybox:
+    print("正在执行任务 requireBusybox")
+    if os.path.exists(f"{app.path()}/chroot/bin/busybox"):
+        print("requireBusybox: busybox already exists")
+    else:
+        shutil.copyfile(f"{app.path()}/utils/busybox", f"{app.path()}/chroot/bin/busybox")
+        os.chmod(f"{app.path()}/chroot/bin/busybox", stat.S_IRWXU)
+        print(
+            f"Copied {app.path()}/utils/busybox -> chroot/usr/bin/busybox"
+        )
+print(f"\nProgram exited with return code {app.run('sh')}")
