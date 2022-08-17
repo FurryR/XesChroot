@@ -6420,7 +6420,7 @@ import typing
 def getid() -> typing.Union[int, None]:
     if len(sys.argv) != 2:
         return None
-    pattern = re.compile("stu_id=[0-9]+")
+    pattern = re.compile("stu_id=[0-9]+;")
     result = pattern.search(sys.argv[1])
     if result is None:
         return None
