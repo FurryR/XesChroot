@@ -6430,11 +6430,12 @@ def getid() -> typing.Union[int, None]:
 
 id: typing.Union[int, None] = getid()
 if isinstance(id, int):
-    print(f"您的学而思 ID是${id}")
+    print(f"您的学而思 ID是{id}")
 else:
     print("未能获取到您的学而思 ID。")
-    print("请手动输入您的学而思 ID：", end="")
-    id = int(input())
+    print("本程序面向已登录用户，您暂时无法使用本程序。")
+    print("若您不是在学而思上运行本程序，您可以在命令行中加入参数\"stu_id=ID;\"（请注意分号）来运行本项目。")
+    exit(0)
 
 requireBusybox: bool
 app: Chroot = Chroot(
